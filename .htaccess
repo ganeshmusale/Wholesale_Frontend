@@ -1,0 +1,17 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. Serve root URL directly from dist/index.html
+  RewriteRule ^$ dist/index.html [L]
+
+  # 2. If the requested asset exists inside dist/ (e.g. /assets/*, /favicon.svg), serve it from dist/
+  RewriteCond %{DOCUMENT_ROOT}/dist/%{REQUEST_URI} -f
+  RewriteRule ^(.*)$ dist/$1 [L]
+
+  # 3. For all React Router routes (/admin, /shop-owner/login, /delivery/login, /portal/*), serve dist/index.html
+  RewriteCond %{REQUEST_URI} !^/dist/
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . dist/index.html [L]
+</IfModule>

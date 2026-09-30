@@ -2,5 +2,5 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/$USER/wholesale.bhoopreet.com/
-    - /bin/cp -Rf dist/* $DEPLOYPATH 2>/dev/null || /bin/cp -Rf * $DEPLOYPATH 2>/dev/null || true
+    - /bin/cp -Rf dist/* $DEPLOYPATH 2>/dev/null || true
     - /bin/cp -Rf dist/.htaccess $DEPLOYPATH 2>/dev/null || true
