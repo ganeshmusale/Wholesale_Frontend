@@ -1,12 +1,38 @@
 import axios from 'axios';
 
-const isLocalhost =
-  typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+// Dynamically determine the backend API base URL:
+// - If running locally (localhost, 127.0.0.1, LAN IP): connects to local backend (http://localhost:5000/api)
+// - If deployed on wholesale.bhoopreet.com or any production domain: connects to live backend (https://backsale.bhoopreet.com/api)
+export const getApiBaseUrl = () => {
+  // If explicitly overridden via Vite environment variable (e.g., VITE_API_URL)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  (isLocalhost ? '/api' : 'https://backsale.bhoopreet.com/api');
+  // Runtime detection based on the current browser hostname
+  if (typeof window !== 'undefined' && window.location) {
+    const hostname = window.location.hostname;
+    const isLocal =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1' ||
+      hostname === '[::1]' ||
+      hostname.endsWith('.local') ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.') ||
+      hostname.startsWith('172.16.') ||
+      hostname === '';
+
+    if (isLocal) {
+      return `http://${hostname === 'localhost' || hostname === '' ? 'localhost' : hostname}:5000/api`;
+    }
+  }
+
+  // Deployed production backend URL
+  return 'https://backsale.bhoopreet.com/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
