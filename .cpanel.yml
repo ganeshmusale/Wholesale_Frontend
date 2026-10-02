@@ -2,5 +2,5 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/bhoopreet/wholesale.shetkarimall.com/
-    - /bin/cp -R dist/* $DEPLOYPATH
+    - /bin/cp -R dist/. $DEPLOYPATH
     - /bin/cp dist/.htaccess $DEPLOYPATH
