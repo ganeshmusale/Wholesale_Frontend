@@ -1,6 +1,9 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/$USER/wholesale.bhoopreet.com/
+    - export DEPLOYPATH=/home/$USER/wholesale.shetkarimall.com/
     - /bin/cp -Rf dist/* $DEPLOYPATH 2>/dev/null || true
     - /bin/cp -Rf dist/.htaccess $DEPLOYPATH 2>/dev/null || true
+    - export LEGACYPATH=/home/$USER/wholesale.bhoopreet.com/
+    - /bin/cp -Rf dist/* $LEGACYPATH 2>/dev/null || true
+    - /bin/cp -Rf dist/.htaccess $LEGACYPATH 2>/dev/null || true
