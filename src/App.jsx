@@ -15,6 +15,7 @@ import OrdersManager from './pages/OrdersManager';
 import BusinessRegistration from './pages/BusinessRegistration';
 import MastersManager from './pages/MastersManager';
 import ReportsManager from './pages/ReportsManager';
+import PurchasesManager from './pages/PurchasesManager';
 
 // Role-specific Auth Pages
 import RoleSelectorPortal from './pages/auth/RoleSelectorPortal';
@@ -85,6 +86,7 @@ function PortalLayout() {
         <main className="page-content">
           {tab === 'dashboard' && <Dashboard setActiveTab={handleTabChange} />}
           {tab === 'catalog' && <BulkOrderCatalog onOpenCart={() => setIsCartOpen(true)} />}
+          {tab === 'purchases' && <PurchasesManager />}
           {tab === 'daily-rates' && <DailyRatesManager />}
           {tab === 'market-comparison' && <MarketComparison />}
           {tab === 'orders' && <OrdersManager />}

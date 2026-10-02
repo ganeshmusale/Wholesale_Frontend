@@ -15,14 +15,18 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  ShoppingBag,
+  Layers,
+  MapPin
 } from 'lucide-react';
 
 export default function ReportsManager() {
   const { isSuperAdmin } = useAuth();
 
-  // Active Report Tab: 'sales' | 'procurement' | 'delivery' | 'khata'
-  const [activeReport, setActiveReport] = useState('sales');
+  // Active Report Tab: 'purchases' | 'sales' | 'procurement' | 'delivery' | 'khata'
+  const [activeReport, setActiveReport] = useState('purchases');
+  const [purchasesSubTab, setPurchasesSubTab] = useState('date_wise'); // 'date_wise' | 'product_wise' | 'all_lots'
 
   // Filter States
   const [dateFrom, setDateFrom] = useState(() => {
@@ -36,6 +40,8 @@ export default function ReportsManager() {
   // Data States
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState([]);
+  const [dateGroups, setDateGroups] = useState([]);
+  const [productGroups, setProductGroups] = useState([]);
   const [summaryData, setSummaryData] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
 
@@ -71,7 +77,8 @@ export default function ReportsManager() {
       if (dateFrom) params.append('date_from', dateFrom);
       if (dateTo) params.append('date_to', dateTo);
 
-      if (activeReport === 'sales') endpoint = `/reports/sales?${params.toString()}`;
+      if (activeReport === 'purchases') endpoint = `/reports/purchases?${params.toString()}`;
+      else if (activeReport === 'sales') endpoint = `/reports/sales?${params.toString()}`;
       else if (activeReport === 'procurement') endpoint = `/reports/procurement?${params.toString()}`;
       else if (activeReport === 'delivery') endpoint = `/reports/delivery?${params.toString()}`;
       else if (activeReport === 'khata') endpoint = `/reports/khata-ledger`;
@@ -80,6 +87,8 @@ export default function ReportsManager() {
       if (res.data.success) {
         setReportData(res.data.data || []);
         setSummaryData(res.data.summary || null);
+        setDateGroups(res.data.date_groups || []);
+        setProductGroups(res.data.product_groups || []);
       } else {
         setErrorMsg('Could not fetch report data.');
       }
@@ -103,7 +112,12 @@ export default function ReportsManager() {
 
     let csvContent = 'data:text/csv;charset=utf-8,';
 
-    if (activeReport === 'sales') {
+    if (activeReport === 'purchases') {
+      csvContent += 'ID,Date,Vegetable,Category,Mandi/Haat,Farmer/Trader,Quantity,Unit,Rate (Rs),Total (Rs),Transport (Rs),Payment Status,Notes\n';
+      reportData.forEach(r => {
+        csvContent += `"${r.id}","${r.purchase_date}","${r.vegetable_name}","${r.category_name || ''}","${r.market_name}","${r.supplier_name || ''}","${r.quantity}","${r.unit_symbol}","${r.unit_price}","${r.total_price}","${r.transport_cost || 0}","${r.payment_status}","${(r.notes || '').replace(/"/g, '""')}"\n`;
+      });
+    } else if (activeReport === 'sales') {
       csvContent += 'Order ID,Order Number,Date,Shop Name,Contact,Type,Total Items,Volume,Total (Rs),Paid (Rs),Balance (Rs),Order Status,Payment Status\n';
       reportData.forEach(r => {
         csvContent += `"${r.id}","${r.order_number}","${new Date(r.created_at).toLocaleDateString()}","${r.business_name}","${r.mobile_number || ''}","${r.payment_type_name}","${r.total_items}","${r.total_volume}","${r.total_amount}","${r.paid_amount}","${r.balance_amount}","${r.order_status}","${r.payment_status}"\n`;
@@ -138,6 +152,15 @@ export default function ReportsManager() {
   const filteredData = reportData.filter(item => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
+    if (activeReport === 'purchases') {
+      return (
+        item.vegetable_name?.toLowerCase().includes(term) ||
+        item.market_name?.toLowerCase().includes(term) ||
+        item.supplier_name?.toLowerCase().includes(term) ||
+        item.purchase_date?.toLowerCase().includes(term) ||
+        item.notes?.toLowerCase().includes(term)
+      );
+    }
     if (activeReport === 'sales') {
       return (
         item.order_number?.toLowerCase().includes(term) ||
@@ -218,6 +241,15 @@ export default function ReportsManager() {
 
       {/* Report Navigation Tabs */}
       <div style={{ display: 'flex', gap: '0.5rem', margin: '1.5rem 0', flexWrap: 'wrap', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+        <button
+          onClick={() => setActiveReport('purchases')}
+          className={`btn ${activeReport === 'purchases' ? 'btn-primary' : 'btn-outline'}`}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: '0.5rem' }}
+        >
+          <ShoppingBag size={16} />
+          Haat Purchases Report (खरेदी अहवाल)
+        </button>
+
         <button
           onClick={() => setActiveReport('sales')}
           className={`btn ${activeReport === 'sales' ? 'btn-primary' : 'btn-outline'}`}
@@ -313,6 +345,35 @@ export default function ReportsManager() {
       </div>
 
       {/* Summary KPI Cards if available */}
+      {summaryData && activeReport === 'purchases' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div className="card" style={{ padding: '1rem' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TOTAL LOTS PROCURED</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+              {summaryData.total_lots}
+            </div>
+          </div>
+          <div className="card" style={{ padding: '1rem' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TOTAL VOLUME PROCURED</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#3b82f6', marginTop: '0.25rem' }}>
+              {parseFloat(summaryData.total_quantity || 0).toLocaleString()} kg
+            </div>
+          </div>
+          <div className="card" style={{ padding: '1rem' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TOTAL PROCUREMENT SPEND</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#059669', marginTop: '0.25rem' }}>
+              ₹{parseFloat(summaryData.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+          </div>
+          <div className="card" style={{ padding: '1rem' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>WEIGHTED AVERAGE RATE</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#6366f1', marginTop: '0.25rem' }}>
+              ₹{parseFloat(summaryData.avg_rate || 0).toFixed(2)} / kg
+            </div>
+          </div>
+        </div>
+      )}
+
       {summaryData && activeReport === 'sales' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
           <div className="card" style={{ padding: '1rem' }}>
@@ -386,7 +447,212 @@ export default function ReportsManager() {
             <p style={{ color: 'var(--text-secondary)' }}>There is no data matching the selected date range or search filter.</p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div>
+            {/* Purchases Sub-View Navigation Bar */}
+            {activeReport === 'purchases' && (
+              <div style={{ padding: '0.75rem 1rem', background: 'var(--hover-bg)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Purchases View Mode:
+                </span>
+                <div style={{ display: 'flex', gap: '0.35rem', background: 'var(--card-bg)', padding: '0.2rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
+                  <button
+                    onClick={() => setPurchasesSubTab('date_wise')}
+                    style={{
+                      padding: '0.35rem 0.75rem',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      background: purchasesSubTab === 'date_wise' ? '#4f46e5' : 'transparent',
+                      color: purchasesSubTab === 'date_wise' ? '#fff' : 'var(--text-secondary)'
+                    }}
+                  >
+                    दिनांकानुसार (Date-wise Summary)
+                  </button>
+                  <button
+                    onClick={() => setPurchasesSubTab('product_wise')}
+                    style={{
+                      padding: '0.35rem 0.75rem',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      background: purchasesSubTab === 'product_wise' ? '#4f46e5' : 'transparent',
+                      color: purchasesSubTab === 'product_wise' ? '#fff' : 'var(--text-secondary)'
+                    }}
+                  >
+                    भाजीपाला निहाय (Product-wise Average)
+                  </button>
+                  <button
+                    onClick={() => setPurchasesSubTab('all_lots')}
+                    style={{
+                      padding: '0.35rem 0.75rem',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      background: purchasesSubTab === 'all_lots' ? '#4f46e5' : 'transparent',
+                      color: purchasesSubTab === 'all_lots' ? '#fff' : 'var(--text-secondary)'
+                    }}
+                  >
+                    सर्व नोंदी (All Lots Ledger)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ overflowX: 'auto' }}>
+            {/* 0. PURCHASES & HAAT PROCUREMENT REPORT TABLE */}
+            {activeReport === 'purchases' && (
+              <>
+                {purchasesSubTab === 'date_wise' && (
+                  <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--hover-bg)', borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
+                        <th style={{ padding: '0.85rem 1rem' }}>Purchase Date</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Unique Vegetables</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Total Lots</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Total Volume (kg)</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Total Procurement Cost (₹)</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Average Rate (₹/kg)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dateGroups.length === 0 ? (
+                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>No date-wise purchase groups found.</td></tr>
+                      ) : (
+                        dateGroups.map(dg => (
+                          <tr key={dg.purchase_date} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                              📅 {dg.purchase_date}
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'center', fontWeight: 600 }}>
+                              {dg.unique_vegetables} varieties
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'center', fontWeight: 600 }}>
+                              {dg.total_lots} lots
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 600, color: '#3b82f6' }}>
+                              {parseFloat(dg.total_quantity || 0).toLocaleString()} kg
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 800, color: '#059669' }}>
+                              ₹{parseFloat(dg.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 700, color: '#4f46e5' }}>
+                              ₹{parseFloat(dg.avg_rate || 0).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                )}
+
+                {purchasesSubTab === 'product_wise' && (
+                  <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--hover-bg)', borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
+                        <th style={{ padding: '0.85rem 1rem' }}>Vegetable</th>
+                        <th style={{ padding: '0.85rem 1rem' }}>Category</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Total Lots</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Total Volume</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Total Cost (₹)</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Weighted Avg Rate (₹)</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Price Range (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productGroups.length === 0 ? (
+                        <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>No product-wise purchases found.</td></tr>
+                      ) : (
+                        productGroups.map(pg => (
+                          <tr key={pg.product_id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                              🥦 {pg.vegetable_name}
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                              {pg.category_name}
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'center', fontWeight: 600 }}>
+                              <span style={{ background: '#e0e7ff', color: '#4338ca', padding: '0.2rem 0.5rem', borderRadius: '1rem', fontSize: '0.8rem' }}>
+                                {pg.total_lots} lots
+                              </span>
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 600, color: '#3b82f6' }}>
+                              {parseFloat(pg.total_quantity || 0).toLocaleString()} {pg.unit_symbol}
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 800, color: '#059669' }}>
+                              ₹{parseFloat(pg.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 800, color: '#4f46e5' }}>
+                              ₹{parseFloat(pg.weighted_avg_rate || 0).toFixed(2)} /{pg.unit_symbol}
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                              ₹{parseFloat(pg.min_rate || 0).toFixed(2)} - ₹{parseFloat(pg.max_rate || 0).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                )}
+
+                {purchasesSubTab === 'all_lots' && (
+                  <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--hover-bg)', borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
+                        <th style={{ padding: '0.85rem 1rem' }}>Date & ID</th>
+                        <th style={{ padding: '0.85rem 1rem' }}>Vegetable</th>
+                        <th style={{ padding: '0.85rem 1rem' }}>Mandi / Haat</th>
+                        <th style={{ padding: '0.85rem 1rem' }}>Farmer / Trader</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Quantity</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Rate (₹)</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Total (₹)</th>
+                        <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Payment</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredData.map(row => (
+                        <tr key={row.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            <div style={{ fontWeight: 600 }}>{row.purchase_date}</div>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>#{row.id}</span>
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: 'var(--primary-color)' }}>
+                            {row.vegetable_name}
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.category_name}</div>
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#4338ca' }}>
+                            📍 {row.market_name}
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            {row.supplier_name || '—'}
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 600 }}>
+                            {parseFloat(row.quantity || 0).toLocaleString()} {row.unit_symbol}
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 700, color: '#059669' }}>
+                            ₹{parseFloat(row.unit_price || 0).toFixed(2)}
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 800, color: 'var(--text-main)' }}>
+                            ₹{parseFloat(row.total_price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
+                            <span className={`badge ${row.payment_status === 'paid' ? 'badge-success' : 'badge-warning'}`}>
+                              {row.payment_status?.toUpperCase() || 'PAID'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
+            )}
+
             {/* 1. SALES & REVENUE REPORT TABLE */}
             {activeReport === 'sales' && (
               <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -581,6 +847,7 @@ export default function ReportsManager() {
                 </tbody>
               </table>
             )}
+            </div>
           </div>
         )}
       </div>

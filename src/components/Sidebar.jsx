@@ -8,6 +8,7 @@ import {
   Package,
   Store,
   Settings2,
+  Truck,
   LogOut,
   X
 } from 'lucide-react';
@@ -108,6 +109,15 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
           <>
             <div className="sidebar-section-label" style={{ marginTop: '0.75rem' }}>Admin Control</div>
             <ul className="nav-links">
+              <li
+                className={`nav-item ${activeTab === 'purchases' ? 'active' : ''}`}
+                onClick={() => handleNavClick('purchases')}
+              >
+                <Truck className="nav-icon" />
+                <span>Haat Purchases (खरेदी)</span>
+                <span className="sidebar-badge badge-warning" style={{ color: '#fff', background: '#10b981' }}>Haat</span>
+              </li>
+
               <li
                 className={`nav-item ${activeTab === 'daily-rates' ? 'active' : ''}`}
                 onClick={() => handleNavClick('daily-rates')}
